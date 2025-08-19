@@ -9,6 +9,8 @@ import 'package:anchor/screens/history_screen.dart';
 import 'package:anchor/screens/settings_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:device_info_plus/device_info_plus.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -31,6 +33,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
   AppSettings _settings = AppSettings();
   late AnimationController _buttonAnimationController;
   late Animation<double> _buttonScaleAnimation;
+  final FlutterLocalNotificationsPlugin _notifications = FlutterLocalNotificationsPlugin();
 
   @override
   void initState() {
@@ -39,6 +42,55 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
     _loadData();
   _binding = WidgetsBinding.instance;
   _binding.addObserver(this);
+    _initNotifications();
+    _requestNotificationPermission();
+  }
+
+  Future<void> _requestNotificationPermission() async {
+    // Android 13+ requires runtime notification permission
+    final deviceInfo = DeviceInfoPlugin();
+    final androidInfo = await deviceInfo.androidInfo;
+    if (androidInfo.version.sdkInt >= 33) {
+      final status = await Permission.notification.request();
+      print('[HomeScreen] Notification permission requested, status: $status');
+    }
+  }
+
+  Future<void> _initNotifications() async {
+    const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const settings = InitializationSettings(android: androidSettings);
+    await _notifications.initialize(
+      settings,
+      onDidReceiveNotificationResponse: (response) {
+        debugPrint('[HomeScreen] Notification action received: ${response.actionId}');
+        switch (response.actionId) {
+          case 'finish':
+            debugPrint('[HomeScreen] Finish action pressed');
+            _handleArrived();
+            break;
+          case 'open_app':
+            debugPrint('[HomeScreen] Open App action pressed');
+            // Optionally bring app to foreground
+            break;
+          default:
+            debugPrint('[HomeScreen] Unknown notification action: ${response.actionId}');
+        }
+      },
+    );
+    // Create notification channel for navigation actions
+    const navChannel = AndroidNotificationChannel(
+      'navigation_channel',
+      'Navigation',
+      description: 'Navigation actions',
+      importance: Importance.max,
+    );
+    final androidPlugin = _notifications.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+    if (androidPlugin != null) {
+      await androidPlugin.createNotificationChannel(navChannel);
+      debugPrint('[HomeScreen] Navigation notification channel created');
+    } else {
+      debugPrint('[HomeScreen] AndroidFlutterLocalNotificationsPlugin not available');
+    }
   }
 
   void _initializeAnimations() {
@@ -137,6 +189,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
       return;
     }
     print('[HomeScreen] Navigating to spot: id=${_currentSpot!.id}, lat=${_currentSpot!.latitude}, lon=${_currentSpot!.longitude}');
+    await _showNavigationNotification();
     try {
       // Try Google Maps intent first
       final googleMapsUrl = 'google.navigation:q=${_currentSpot!.latitude},${_currentSpot!.longitude}&mode=w';
@@ -177,6 +230,47 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
         _showNavigationOptionsSheet();
       }
     }
+  }
+
+  Future<void> _showNavigationNotification() async {
+    debugPrint('[HomeScreen] Showing navigation notification...');
+    const androidDetails = AndroidNotificationDetails(
+      'navigation_channel',
+      'Navigation',
+      channelDescription: 'Navigation actions',
+      importance: Importance.max,
+      priority: Priority.high,
+      actions: [
+        AndroidNotificationAction(
+          'open_app',
+          'Open App',
+          showsUserInterface: true,
+          // Add more options if needed
+        ),
+        AndroidNotificationAction(
+          'finish',
+          'Finish',
+          showsUserInterface: true,
+        ),
+      ],
+    );
+    const details = NotificationDetails(android: androidDetails);
+    await _notifications.show(
+      1,
+      'Navigation Started',
+      'Tap to return to Anchor or mark as finished.',
+      details,
+    );
+    debugPrint('[HomeScreen] Notification show call completed');
+  }
+
+  Future<void> _handleArrived() async {
+    if (_currentSpot == null) return;
+    await StorageService.deactivateCurrentSpot();
+    await _loadData();
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Marked as finished!')),
+    );
   }
 
   void _showNavigationOptionsSheet() {
@@ -263,6 +357,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
                                 setState(() => _currentSpot = null);
                               },
                               onNavigate: _navigateToSpot,
+                              onArrived: _handleArrived,
                             ),
                             const SizedBox(height: 32),
                           ],

@@ -10,6 +10,7 @@ class CurrentSpotCard extends StatefulWidget {
   final AppSettings settings;
   final VoidCallback onDelete;
   final VoidCallback onNavigate;
+  final VoidCallback onArrived;
 
   const CurrentSpotCard({
     super.key,
@@ -17,6 +18,7 @@ class CurrentSpotCard extends StatefulWidget {
     required this.settings,
     required this.onDelete,
     required this.onNavigate,
+    required this.onArrived,
   });
 
   @override
@@ -24,6 +26,31 @@ class CurrentSpotCard extends StatefulWidget {
 }
 
 class _CurrentSpotCardState extends State<CurrentSpotCard> {
+  void _showArrivedConfirmation() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Mark as Finished'),
+        content: const Text('Are you sure you want to mark this spot as finished? You can still navigate again if needed.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              widget.onArrived();
+            },
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(context).colorScheme.tertiary,
+            ),
+            child: const Text('Finish'),
+          ),
+        ],
+      ),
+    );
+  }
   double? _distanceToSpot;
   String? _photoPath;
 
@@ -163,13 +190,16 @@ class _CurrentSpotCardState extends State<CurrentSpotCard> {
               children: [
                 // Photo thumbnail (if available)
                 if (_photoPath != null) ...[
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: Image.file(
-                      File(_photoPath!),
-                      width: 60,
-                      height: 60,
-                      fit: BoxFit.cover,
+                  GestureDetector(
+                    onTap: _showPhoto,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Image.file(
+                        File(_photoPath!),
+                        width: 60,
+                        height: 60,
+                        fit: BoxFit.cover,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -319,15 +349,21 @@ class _CurrentSpotCardState extends State<CurrentSpotCard> {
                   ),
                 ),
                 const SizedBox(width: 12),
-                if (_photoPath != null)
-                  IconButton(
-                    onPressed: _showPhoto,
-                    icon: Icon(Icons.photo, color: colorScheme.onSurface.withValues(alpha: 0.6)),
-                    style: IconButton.styleFrom(
-                      backgroundColor: colorScheme.surfaceContainer,
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _showArrivedConfirmation,
+                    icon: Icon(Icons.check_circle, color: colorScheme.tertiary),
+                    label: Text(
+                      'Arrived',
+                      style: TextStyle(color: colorScheme.tertiary),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      side: BorderSide(color: colorScheme.tertiary),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     ),
                   ),
+                ),
+                const SizedBox(width: 12),
               ],
             ),
 

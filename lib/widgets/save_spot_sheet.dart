@@ -412,19 +412,22 @@ class _SaveSpotSheetState extends State<SaveSpotSheet> with TickerProviderStateM
                 initiallyExpanded: _isExpanded,
                 onExpansionChanged: (expanded) => setState(() => _isExpanded = expanded),
                 children: [
-                  // Note field
-                  TextField(
-                    controller: _noteController,
-                    decoration: InputDecoration(
-                      labelText: 'Note (optional)',
-                      hintText: 'e.g., Near the elevator',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
+                  // Note field with top margin
+                  Padding(
+                    padding: const EdgeInsets.only(top: 16),
+                    child: TextField(
+                      controller: _noteController,
+                      decoration: InputDecoration(
+                        labelText: 'Note (optional)',
+                        hintText: 'e.g., Near the elevator',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        prefixIcon: const Icon(Icons.note),
                       ),
-                      prefixIcon: const Icon(Icons.note),
+                      maxLines: 2,
+                      textCapitalization: TextCapitalization.sentences,
                     ),
-                    maxLines: 2,
-                    textCapitalization: TextCapitalization.sentences,
                   ),
                   
                   const SizedBox(height: 16),
