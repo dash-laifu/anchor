@@ -11,6 +11,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:flutter/services.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -188,48 +189,24 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
       print('[HomeScreen] No spot to navigate to');
       return;
     }
-    print('[HomeScreen] Navigating to spot: id=${_currentSpot!.id}, lat=${_currentSpot!.latitude}, lon=${_currentSpot!.longitude}');
-    await _showNavigationNotification();
-    try {
-      // Try Google Maps intent first
-      final googleMapsUrl = 'google.navigation:q=${_currentSpot!.latitude},${_currentSpot!.longitude}&mode=w';
-      final googleMapsUri = Uri.parse(googleMapsUrl);
-      if (await canLaunchUrl(googleMapsUri)) {
-        await launchUrl(googleMapsUri, mode: LaunchMode.externalApplication);
-        print('[HomeScreen] Google Maps navigation launched');
-        return;
-      }
-      // Fallback to geo intent
-      final geoUrl = 'geo:${_currentSpot!.latitude},${_currentSpot!.longitude}';
-      final geoUri = Uri.parse(geoUrl);
-      if (await canLaunchUrl(geoUri)) {
-        await launchUrl(geoUri, mode: LaunchMode.externalApplication);
-        print('[HomeScreen] Geo intent navigation launched');
-        return;
-      }
-      // Fallback to web URL
+    // If default navigation app is set, launch directly, else show options
+    if (_settings.defaultNavigationApp != null && _settings.defaultNavigationApp != 'ask') {
       final navigationUrl = await LocationService.launchNavigation(
         _currentSpot!.latitude,
         _currentSpot!.longitude,
         _settings.defaultNavigationApp,
       );
-      print('[HomeScreen] Fallback Navigation URL: $navigationUrl');
+      print('[HomeScreen] Launching default navigation app: ${_settings.defaultNavigationApp}');
       final uri = Uri.parse(navigationUrl);
       if (await canLaunchUrl(uri)) {
         await launchUrl(uri, mode: LaunchMode.externalApplication);
-        print('[HomeScreen] Web navigation launched');
-      } else {
-        print('[HomeScreen] Cannot launch any navigation URL');
-        if (mounted) {
-          _showNavigationOptionsSheet();
-        }
-      }
-    } catch (e) {
-      print('[HomeScreen] Navigation error: $e');
-      if (mounted) {
-        _showNavigationOptionsSheet();
+        await _showNavigationNotification();
+        return;
       }
     }
+    // Otherwise, show options sheet
+    _showNavigationOptionsSheet();
+    // await _showNavigationNotification();
   }
 
   Future<void> _showNavigationNotification() async {
@@ -279,7 +256,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) => NavigationOptionsSheet(spot: _currentSpot!),
+      builder: (context) => NavigationOptionsSheet(
+        spot: _currentSpot!,
+        onShowNotification: _showNavigationNotification,
+      ),
     );
   }
 
@@ -293,7 +273,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    
     return Scaffold(
       backgroundColor: colorScheme.surface,
       appBar: AppBar(
@@ -326,24 +305,25 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
       body: SafeArea(
         child: _isLoading
             ? const Center(child: CircularProgressIndicator())
-            : Column(
-                children: [
-                  // Status Header
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(16),
-                    child: Text(
-                      _getStatusText(),
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: colorScheme.onSurface.withValues(alpha: 0.7),
+            : RefreshIndicator(
+                onRefresh: _loadData,
+                displacement: 32,
+                child: ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  children: [
+                    // Status Header
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16),
+                      child: Text(
+                        _getStatusText(),
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: colorScheme.onSurface.withValues(alpha: 0.7),
+                        ),
                       ),
                     ),
-                  ),
-                  
-                  // Main Content Area
-                  Expanded(
-                    child: Padding(
+                    Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: Column(
                         children: [
@@ -361,9 +341,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
                             ),
                             const SizedBox(height: 32),
                           ],
-                          
-                          const Spacer(),
-                          
+                          const SizedBox(height: 32),
                           // Primary Action Button
                           ScaleTransition(
                             scale: _buttonScaleAnimation,
@@ -373,9 +351,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
                               isLoading: _isLoading,
                             ),
                           ),
-                          
                           const SizedBox(height: 48),
-                          
                           // Hint Text
                           if (_currentSpot == null)
                             Container(
@@ -388,13 +364,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
                                 ),
                               ),
                             ),
-                          
-                          const SizedBox(height: 32),
                         ],
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
       ),
     );
@@ -403,13 +377,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
 
 class NavigationOptionsSheet extends StatelessWidget {
   final ParkingSpot spot;
+  final Future<void> Function() onShowNotification;
 
-  const NavigationOptionsSheet({super.key, required this.spot});
+  const NavigationOptionsSheet({super.key, required this.spot, required this.onShowNotification});
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    
     return Container(
       padding: const EdgeInsets.all(24),
       child: Column(
@@ -422,7 +396,6 @@ class NavigationOptionsSheet extends StatelessWidget {
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 24),
-          
           _NavigationOption(
             icon: Icons.map,
             title: 'Google Maps',
@@ -433,35 +406,35 @@ class NavigationOptionsSheet extends StatelessWidget {
               if (await canLaunchUrl(uri)) {
                 await launchUrl(uri, mode: LaunchMode.externalApplication);
               }
-              if (context.mounted) Navigator.pop(context);
+              if (context.mounted) {
+                Navigator.pop(context);
+                await onShowNotification();
+              }
             },
           ),
-          
           _NavigationOption(
             icon: Icons.explore,
             title: 'Compass Mode',
             subtitle: 'Direction and distance only',
-            onTap: () {
+            onTap: () async {
               Navigator.pop(context);
-              _showCompassMode(context, spot);
+              // TODO: Implement compass mode logic here
+              await onShowNotification();
+              // showCompassMode(context, spot); // Uncomment when implemented
             },
           ),
-          
           _NavigationOption(
             icon: Icons.content_copy,
             title: 'Copy Coordinates',
             subtitle: 'Share location manually',
-            onTap: () {
-              // TODO: Copy coordinates to clipboard
+            onTap: () async {
+              final coords = '${spot.latitude}, ${spot.longitude}';
+              await copyToClipboard(context, coords);
               Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Coordinates copied to clipboard')),
-              );
+              await onShowNotification();
             },
           ),
-          
           const SizedBox(height: 16),
-          
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('Cancel'),
@@ -471,11 +444,18 @@ class NavigationOptionsSheet extends StatelessWidget {
     );
   }
 
-  void _showCompassMode(BuildContext context, ParkingSpot spot) {
-    showDialog(
-      context: context,
-      builder: (context) => CompassModeDialog(spot: spot),
-    );
+  Future<void> copyToClipboard(BuildContext context, String text) async {
+    
+    try {
+      await Clipboard.setData(ClipboardData(text: text));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Coordinates copied: $text')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to copy coordinates')),
+      );
+    }
   }
 }
 
@@ -483,26 +463,23 @@ class _NavigationOption extends StatelessWidget {
   final IconData icon;
   final String title;
   final String subtitle;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   const _NavigationOption({
     required this.icon,
     required this.title,
     required this.subtitle,
-    required this.onTap,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      child: ListTile(
-        leading: Icon(icon, color: Theme.of(context).colorScheme.primary),
-        title: Text(title),
-        subtitle: Text(subtitle),
-        onTap: onTap,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      ),
+    return ListTile(
+      leading: Icon(icon, color: Theme.of(context).colorScheme.primary),
+      title: Text(title),
+      subtitle: Text(subtitle),
+      onTap: onTap,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
     );
   }
 }

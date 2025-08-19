@@ -70,11 +70,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       (value) => _updateSettings(_settings.copyWith(askDurationOnSave: value)),
                     ),
                     if (_settings.askDurationOnSave)
-                      _buildDropdownTile(
+                      _buildDropdownTile<int>(
                         'Default parking duration',
-                        _settings.defaultDurationMinutes,
+                        _settings.defaultDurationMinutes ?? -1,
                         [
-                          (null, 'No default'),
+                          (-1, 'No default'),
                           (30, '30 minutes'),
                           (60, '1 hour'),
                           (120, '2 hours'),
@@ -109,11 +109,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   'Navigation',
                   Icons.navigation,
                   [
-                    _buildDropdownTile(
+                    _buildDropdownTile<String>(
                       'Default navigation app',
-                      _settings.defaultNavigationApp,
+                      _settings.defaultNavigationApp ?? 'ask',
                       [
-                        (null, 'Ask every time'),
+                        ('ask', 'Ask every time'),
                         ('google_maps', 'Google Maps'),
                         ('apple_maps', 'Apple Maps'),
                       ],
@@ -227,21 +227,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildDropdownTile<T>(String title, T? value, List<(T?, String)> options, ValueChanged<T?> onChanged) {
+  Widget _buildDropdownTile<T>(String title, T value, List<(T, String)> options, ValueChanged<T> onChanged) {
+    String subtitle = options.firstWhere((opt) => opt.$1 == value, orElse: () => options.first).$2;
     return ListTile(
       contentPadding: EdgeInsets.zero,
       title: Text(title),
-      subtitle: Text(options.firstWhere((opt) => opt.$1 == value).$2),
-      trailing: DropdownButton<T?>(
-        value: value,
+      subtitle: Text(subtitle),
+      trailing: DropdownButton<T>(
+        value: options.any((opt) => opt.$1 == value) ? value : options.first.$1,
         underline: const SizedBox(),
         items: options.map((option) {
-          return DropdownMenuItem<T?>(
+          return DropdownMenuItem<T>(
             value: option.$1,
             child: Text(option.$2),
           );
         }).toList(),
-        onChanged: onChanged,
+        onChanged: (selected) {
+          onChanged(selected!);
+        },
       ),
     );
   }
