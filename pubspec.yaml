@@ -1,0 +1,30 @@
+name: anchor
+description: "Never wander a parking lot again! This dead-simple app lets you save your car's location with one tap and effortlessly guides you back, all while keeping your data private and offline."
+publish_to: "none"
+version: 1.0.0
+
+environment:
+  sdk: ^3.6.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  google_fonts: ^6.1.0
+  geolocator: ^13.0.4
+  geocoding: ^4.0.0
+  image_picker: '>=1.1.2'
+  shared_preferences: ^2.0.0
+  sqflite: ^2.0.0
+  url_launcher: ^6.0.0
+  flutter_local_notifications: ^19.0.0
+  path_provider: ^2.0.0
+  intl: 0.20.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
