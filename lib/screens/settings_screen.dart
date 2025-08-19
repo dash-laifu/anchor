@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:anchor/models/parking_spot.dart';
 import 'package:anchor/services/storage_service.dart';
+import 'package:device_info_plus/device_info_plus.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -39,9 +41,38 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-  void _updateSettings(AppSettings newSettings) {
+  Future<void> _updateSettings(AppSettings newSettings) async {
+    // If enabling askDurationOnSave, require exact alarm permission
+    if (!(_settings.askDurationOnSave) && newSettings.askDurationOnSave) {
+      final status = await _requestExactAlarmPermission();
+      if (!status) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Exact alarm permission required for reminders. Enable in system settings.')),
+          );
+        }
+        // Do not enable if permission not granted
+        setState(() => _settings = _settings.copyWith(askDurationOnSave: false));
+        return;
+      }
+    }
     setState(() => _settings = newSettings);
     _saveSettings();
+  }
+
+  Future<bool> _requestExactAlarmPermission() async {
+    // Only needed for Android 13+
+    try {
+      final deviceInfo = await DeviceInfoPlugin().androidInfo;
+      if (deviceInfo.version.sdkInt >= 33) {
+        final status = await Permission.scheduleExactAlarm.request();
+        return status.isGranted;
+      }
+      return true;
+    } catch (e) {
+      debugPrint('[SettingsScreen] Error requesting exact alarm permission: $e');
+      return false;
+    }
   }
 
   @override

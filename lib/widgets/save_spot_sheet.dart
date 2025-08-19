@@ -6,6 +6,9 @@ import 'package:anchor/models/parking_spot.dart';
 import 'package:anchor/services/location_service.dart';
 import 'package:anchor/services/storage_service.dart';
 import 'package:path/path.dart' as path;
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:timezone/timezone.dart' as tz;
+import 'package:timezone/data/latest.dart' as tzdata;
 
 class SaveSpotSheet extends StatefulWidget {
   final AppSettings settings;
@@ -17,6 +20,12 @@ class SaveSpotSheet extends StatefulWidget {
 }
 
 class _SaveSpotSheetState extends State<SaveSpotSheet> with TickerProviderStateMixin {
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    tzdata.initializeTimeZones();
+  }
+  final FlutterLocalNotificationsPlugin _notifications = FlutterLocalNotificationsPlugin();
   final _noteController = TextEditingController();
   final _levelController = TextEditingController();
   final _imagePicker = ImagePicker();
@@ -127,7 +136,9 @@ class _SaveSpotSheetState extends State<SaveSpotSheet> with TickerProviderStateM
   }
 
   Future<void> _saveSpot() async {
+    debugPrint('[SaveSpotSheet] _saveSpot called');
     if (_currentPosition == null) {
+      debugPrint('[SaveSpotSheet] No location available');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('No location available')),
       );
@@ -161,6 +172,9 @@ class _SaveSpotSheetState extends State<SaveSpotSheet> with TickerProviderStateM
       }
       
       // Create parking spot
+      final reminderAt = _reminderMinutes != null 
+          ? DateTime.now().add(Duration(minutes: _reminderMinutes!))
+          : null;
       final spot = ParkingSpot(
         id: spotId,
         createdAt: DateTime.now(),
@@ -171,25 +185,47 @@ class _SaveSpotSheetState extends State<SaveSpotSheet> with TickerProviderStateM
         note: _noteController.text.trim().isEmpty ? null : _noteController.text.trim(),
         levelOrSpot: _levelController.text.trim().isEmpty ? null : _levelController.text.trim(),
         mediaIds: mediaIds,
-        reminderAt: _reminderMinutes != null 
-            ? DateTime.now().add(Duration(minutes: _reminderMinutes!))
-            : null,
+        reminderAt: reminderAt,
         source: SaveSource.manual,
         isActive: true,
       );
-      
+
       await StorageService.saveParkingSpot(spot);
-      
+
+      // Schedule reminder notification if needed
+      if (reminderAt != null) {
+        await _notifications.zonedSchedule(
+          spot.id.hashCode, // unique id
+          'Parking Reminder',
+          'Your parking time is about to expire.',
+          tz.TZDateTime.from(reminderAt, tz.local),
+          NotificationDetails(
+            android: AndroidNotificationDetails(
+              'reminder_channel',
+              'Parking Reminders',
+              channelDescription: 'Reminders for parking duration',
+              importance: Importance.max,
+              priority: Priority.high,
+            ),
+          ),
+          androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        );
+      }
+
       if (mounted) {
-        Navigator.pop(context, spot);
+        debugPrint('[SaveSpotSheet] Attempting to close modal with spot: id=${spot.id}');
+        Navigator.of(context, rootNavigator: true).pop(spot);
+        debugPrint('[SaveSpotSheet] Modal close called');
       }
     } catch (e) {
+      debugPrint('[SaveSpotSheet] Error: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Failed to save parking spot')),
         );
       }
     } finally {
+      debugPrint('[SaveSpotSheet] finally block reached');
       if (mounted) {
         setState(() => _isLoading = false);
       }
