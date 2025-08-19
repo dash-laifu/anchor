@@ -70,9 +70,10 @@ class StorageService {
   // Parking Spot operations
   static Future<void> saveParkingSpot(ParkingSpot spot) async {
     final db = await database;
-    
+    print('[StorageService] Saving parking spot: id=${spot.id}, isActive=${spot.isActive}, lat=${spot.latitude}, lon=${spot.longitude}');
     // First, deactivate any existing active spots
     if (spot.isActive) {
+      print('[StorageService] Deactivating previous active spots');
       await db.update(
         'parking_spots',
         {'is_active': 0},
@@ -85,7 +86,7 @@ class StorageService {
       spot.toMap(),
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
-
+    print('[StorageService] Spot saved');
     // Clean up old spots if we exceed the maximum
     await _cleanupOldSpots();
   }
@@ -97,8 +98,9 @@ class StorageService {
       where: 'is_active = 1',
       limit: 1,
     );
-
+    print('[StorageService] getActiveSpot: found=${maps.isNotEmpty}');
     if (maps.isNotEmpty) {
+      print('[StorageService] Active spot loaded: id=${maps.first['id']}, lat=${maps.first['latitude']}, lon=${maps.first['longitude']}');
       return ParkingSpot.fromMap(maps.first);
     }
     return null;
@@ -116,7 +118,7 @@ class StorageService {
 
   static Future<void> deleteSpot(String spotId) async {
     final db = await database;
-    
+    print('[StorageService] Deleting spot: id=$spotId');
     // Delete associated media files
     final mediaAssets = await getMediaForSpot(spotId);
     for (final asset in mediaAssets) {
@@ -132,6 +134,7 @@ class StorageService {
       where: 'id = ?',
       whereArgs: [spotId],
     );
+    print('[StorageService] Spot deleted');
   }
 
   static Future<void> deactivateCurrentSpot() async {
@@ -170,13 +173,12 @@ class StorageService {
 
   static Future<void> _cleanupOldSpots() async {
     final db = await database;
-    
     // Keep only the most recent spots beyond the limit
     final List<Map<String, dynamic>> oldSpots = await db.query(
       'parking_spots',
       where: 'is_active = 0',
       orderBy: 'created_at DESC',
-      limit: -1,
+      limit: null,
       offset: maxHistorySpots,
     );
 

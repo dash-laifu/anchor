@@ -101,7 +101,9 @@ class ParkingSpot {
       address: map['address'],
       note: map['note'],
       levelOrSpot: map['level_or_spot'],
-      mediaIds: map['media_ids']?.split(',').where((id) => id.isNotEmpty).toList() ?? [],
+      mediaIds: map['media_ids'] is String && (map['media_ids'] as String).isNotEmpty
+          ? (map['media_ids'] as String).split(',').whereType<String>().where((id) => id.isNotEmpty).toList()
+          : [],
       reminderAt: map['reminder_at'] != null ? DateTime.fromMillisecondsSinceEpoch(map['reminder_at']) : null,
       source: SaveSource.values[map['source'] ?? 0],
       isActive: map['is_active'] == 1,

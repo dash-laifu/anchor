@@ -17,7 +17,15 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
+class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, WidgetsBindingObserver {
+  late final WidgetsBinding _binding;
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      print('[HomeScreen] App resumed, reloading data');
+      _loadData();
+    }
+  }
   ParkingSpot? _currentSpot;
   bool _isLoading = false;
   AppSettings _settings = AppSettings();
@@ -29,6 +37,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     super.initState();
     _initializeAnimations();
     _loadData();
+  _binding = WidgetsBinding.instance;
+  _binding.addObserver(this);
   }
 
   void _initializeAnimations() {
@@ -48,16 +58,17 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   @override
   void dispose() {
     _buttonAnimationController.dispose();
+  _binding.removeObserver(this);
     super.dispose();
   }
 
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
-    
+    print('[HomeScreen] Loading data...');
     try {
       final spot = await StorageService.getActiveSpot();
       final settings = await StorageService.getSettings();
-      
+      print('[HomeScreen] Loaded spot: ${spot?.id}, settings: $settings');
       setState(() {
         _currentSpot = spot;
         _settings = settings;
@@ -94,7 +105,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Future<void> _saveNewSpot() async {
-    final result = await showModalBottomSheet<ParkingSpot?>(
+    print('[HomeScreen] Saving new spot...');
+    final result = await showModalBottomSheet<ParkingSpot?> (
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -102,13 +114,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
 
     if (result != null) {
+      print('[HomeScreen] New spot saved: id=${result.id}, lat=${result.latitude}, lon=${result.longitude}');
       setState(() => _currentSpot = result);
-      
       if (!mounted) return;
-      
       final timeText = result.createdAt.hour.toString().padLeft(2, '0') + 
                      ':' + result.createdAt.minute.toString().padLeft(2, '0');
-      
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Saved your spot • $timeText'),
@@ -116,28 +126,53 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           backgroundColor: Theme.of(context).colorScheme.primary,
         ),
       );
+    } else {
+      print('[HomeScreen] Spot save cancelled or failed');
     }
   }
 
   Future<void> _navigateToSpot() async {
-    if (_currentSpot == null) return;
-
+    if (_currentSpot == null) {
+      print('[HomeScreen] No spot to navigate to');
+      return;
+    }
+    print('[HomeScreen] Navigating to spot: id=${_currentSpot!.id}, lat=${_currentSpot!.latitude}, lon=${_currentSpot!.longitude}');
     try {
+      // Try Google Maps intent first
+      final googleMapsUrl = 'google.navigation:q=${_currentSpot!.latitude},${_currentSpot!.longitude}&mode=w';
+      final googleMapsUri = Uri.parse(googleMapsUrl);
+      if (await canLaunchUrl(googleMapsUri)) {
+        await launchUrl(googleMapsUri, mode: LaunchMode.externalApplication);
+        print('[HomeScreen] Google Maps navigation launched');
+        return;
+      }
+      // Fallback to geo intent
+      final geoUrl = 'geo:${_currentSpot!.latitude},${_currentSpot!.longitude}';
+      final geoUri = Uri.parse(geoUrl);
+      if (await canLaunchUrl(geoUri)) {
+        await launchUrl(geoUri, mode: LaunchMode.externalApplication);
+        print('[HomeScreen] Geo intent navigation launched');
+        return;
+      }
+      // Fallback to web URL
       final navigationUrl = await LocationService.launchNavigation(
         _currentSpot!.latitude,
         _currentSpot!.longitude,
         _settings.defaultNavigationApp,
       );
-
+      print('[HomeScreen] Fallback Navigation URL: $navigationUrl');
       final uri = Uri.parse(navigationUrl);
       if (await canLaunchUrl(uri)) {
         await launchUrl(uri, mode: LaunchMode.externalApplication);
+        print('[HomeScreen] Web navigation launched');
       } else {
+        print('[HomeScreen] Cannot launch any navigation URL');
         if (mounted) {
           _showNavigationOptionsSheet();
         }
       }
     } catch (e) {
+      print('[HomeScreen] Navigation error: $e');
       if (mounted) {
         _showNavigationOptionsSheet();
       }
