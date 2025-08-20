@@ -3,6 +3,7 @@ import 'package:anchor/models/parking_spot.dart';
 import 'package:anchor/services/storage_service.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -14,6 +15,17 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   AppSettings _settings = AppSettings();
   bool _isLoading = true;
+  final FlutterLocalNotificationsPlugin _notifications = FlutterLocalNotificationsPlugin();
+
+  Future<void> _ensureNotificationsInitialized() async {
+    try {
+      const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+      const settings = InitializationSettings(android: androidSettings);
+      await _notifications.initialize(settings);
+    } catch (e) {
+      debugPrint('[SettingsScreen] Notification init failed: $e');
+    }
+  }
 
   @override
   void initState() {
@@ -99,6 +111,37 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       'Get reminded when your parking time is about to expire',
                       _settings.askDurationOnSave,
                       (value) => _updateSettings(_settings.copyWith(askDurationOnSave: value)),
+                    ),
+                    _buildActionTile(
+                      'Show pending reminders',
+                      'Inspect scheduled reminders on this device',
+                      Icons.schedule,
+                      () async {
+                        await _ensureNotificationsInitialized();
+                        await _showPendingNotifications();
+                      },
+                    ),
+                    _buildActionTile(
+                      'Clear pending reminders',
+                      'Remove all scheduled reminders (use with caution)',
+                      Icons.delete_sweep,
+                      () async {
+                        final confirmed = await showDialog<bool>(
+                          context: context,
+                          builder: (context) => AlertDialog(
+                            title: const Text('Clear pending reminders?'),
+                            content: const Text('This will cancel all scheduled reminders on this device.'),
+                            actions: [
+                              TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+                              TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Clear')),
+                            ],
+                          ),
+                        );
+                        if (confirmed == true) {
+                          await _ensureNotificationsInitialized();
+                          await _clearPendingNotifications();
+                        }
+                      },
                     ),
                     if (_settings.askDurationOnSave)
                       _buildDropdownTile<int>(
@@ -416,5 +459,57 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _showPendingNotifications() async {
+    try {
+      final pending = await _notifications.pendingNotificationRequests();
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Pending notifications'),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: pending.isEmpty
+                    ? [const Text('No pending notifications')]
+                    : pending.map((p) => Text('id=${p.id} title=${p.title ?? '-'} body=${p.body ?? '-'}')).toList(),
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close')),
+          ],
+        ),
+      );
+    } catch (e) {
+      debugPrint('[SettingsScreen] Could not fetch pending notifications: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to read pending notifications')),
+        );
+      }
+    }
+  }
+
+  Future<void> _clearPendingNotifications() async {
+    try {
+      await _notifications.cancelAll();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('All pending reminders cleared')),
+        );
+      }
+    } catch (e) {
+      debugPrint('[SettingsScreen] Failed to clear pending notifications: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to clear pending reminders')),
+        );
+      }
+    }
   }
 }
