@@ -77,8 +77,8 @@ class _PrimaryActionButtonState extends State<PrimaryActionButton>
         return Transform.scale(
           scale: widget.hasActiveSpot ? 1.0 : _pulseAnimation.value,
           child: Container(
-            width: 200,
-            height: 200,
+            width: 180,
+            height: 180,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               gradient: LinearGradient(
@@ -105,9 +105,9 @@ class _PrimaryActionButtonState extends State<PrimaryActionButton>
                 borderRadius: BorderRadius.circular(100),
                 child: Container(
                   decoration: const BoxDecoration(shape: BoxShape.circle),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
                       if (widget.isLoading)
                         SizedBox(
                           width: 32,
@@ -131,10 +131,12 @@ class _PrimaryActionButtonState extends State<PrimaryActionButton>
                       const SizedBox(height: 12),
                       
                       Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
                         child: Text(
-                          widget.hasActiveSpot ? 'Navigate to\nmy spot' : 'Save my\nparking',
+                          widget.hasActiveSpot ? 'Navigate to my spot' : 'Save my parking',
                           textAlign: TextAlign.center,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                           style: textTheme.titleMedium?.copyWith(
                             color: widget.hasActiveSpot 
                                 ? colorScheme.onSecondary 

@@ -4,6 +4,7 @@ import 'package:anchor/services/storage_service.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:anchor/utils/logger.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -23,7 +24,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       const settings = InitializationSettings(android: androidSettings);
       await _notifications.initialize(settings);
     } catch (e) {
-      debugPrint('[SettingsScreen] Notification init failed: $e');
+  Logger.d('SettingsScreen: notif init failed');
     }
   }
 
@@ -82,7 +83,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       }
       return true;
     } catch (e) {
-      debugPrint('[SettingsScreen] Error requesting exact alarm permission: $e');
+  Logger.d('SettingsScreen: exact alarm permission error');
       return false;
     }
   }
@@ -120,6 +121,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         await _ensureNotificationsInitialized();
                         await _showPendingNotifications();
                       },
+                      textColor: colorScheme.primary,
                     ),
                     _buildActionTile(
                       'Clear pending reminders',
@@ -133,7 +135,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             content: const Text('This will cancel all scheduled reminders on this device.'),
                             actions: [
                               TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-                              TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Clear')),
+                              TextButton(
+                                onPressed: () => Navigator.pop(context, true),
+                                style: TextButton.styleFrom(foregroundColor: Theme.of(context).colorScheme.error),
+                                child: const Text('Clear'),
+                              ),
                             ],
                           ),
                         );
@@ -142,6 +148,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           await _clearPendingNotifications();
                         }
                       },
+                      textColor: colorScheme.error,
                     ),
                     if (_settings.askDurationOnSave)
                       _buildDropdownTile<int>(
@@ -261,8 +268,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget _buildSection(String title, IconData icon, List<Widget> children) {
+    final borderColor = Theme.of(context).colorScheme.onSurface.withOpacity(0.12);
     return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      shape: RoundedRectangleBorder(
+        side: BorderSide(color: borderColor, width: 1.6),
+        borderRadius: BorderRadius.circular(12),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -486,7 +497,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
       );
     } catch (e) {
-      debugPrint('[SettingsScreen] Could not fetch pending notifications: $e');
+      Logger.d('SettingsScreen: could not fetch pending notifications');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Failed to read pending notifications')),
@@ -504,7 +515,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         );
       }
     } catch (e) {
-      debugPrint('[SettingsScreen] Failed to clear pending notifications: $e');
+      Logger.d('SettingsScreen: failed to clear pending notifications');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Failed to clear pending reminders')),

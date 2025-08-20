@@ -264,12 +264,16 @@ class _HistorySpotCardState extends State<HistorySpotCard> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final borderColor = colorScheme.onSurface.withOpacity(0.12);
     final textTheme = Theme.of(context).textTheme;
     final dateFormatter = DateFormat('MMM d, y • h:mm a');
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      shape: RoundedRectangleBorder(
+        side: BorderSide(color: borderColor, width: 1.6),
+        borderRadius: BorderRadius.circular(12),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -323,7 +327,7 @@ class _HistorySpotCardState extends State<HistorySpotCard> {
                         children: [
                           Icon(Icons.navigation, color: colorScheme.primary),
                           const SizedBox(width: 8),
-                          const Text('Navigate'),
+                          Flexible(child: Text('Navigate', overflow: TextOverflow.ellipsis)),
                         ],
                       ),
                     ),
@@ -333,7 +337,7 @@ class _HistorySpotCardState extends State<HistorySpotCard> {
                         children: [
                           Icon(Icons.delete, color: colorScheme.error),
                           const SizedBox(width: 8),
-                          const Text('Delete'),
+                          Flexible(child: Text('Delete', style: TextStyle(color: colorScheme.error), overflow: TextOverflow.ellipsis)),
                         ],
                       ),
                     ),

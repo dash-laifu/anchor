@@ -111,7 +111,7 @@ class _CurrentSpotCardState extends State<CurrentSpotCard> {
       margin: EdgeInsets.zero,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -341,8 +341,12 @@ class _CurrentSpotCardState extends State<CurrentSpotCard> {
                     label: Text(
                       'Navigate',
                       style: TextStyle(color: colorScheme.primary),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
                     ),
                     style: OutlinedButton.styleFrom(
+                      minimumSize: const Size(0, 44),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                       side: BorderSide(color: colorScheme.primary),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     ),
@@ -356,14 +360,17 @@ class _CurrentSpotCardState extends State<CurrentSpotCard> {
                     label: Text(
                       'Arrived',
                       style: TextStyle(color: colorScheme.tertiary),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
                     ),
                     style: OutlinedButton.styleFrom(
+                      minimumSize: const Size(0, 44),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                       side: BorderSide(color: colorScheme.tertiary),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     ),
                   ),
                 ),
-                const SizedBox(width: 12),
               ],
             ),
 

@@ -10,6 +10,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tzdata;
 import 'package:flutter/services.dart';
+import 'package:anchor/utils/logger.dart';
 
 class SaveSpotSheet extends StatefulWidget {
   final AppSettings settings;
@@ -137,9 +138,9 @@ class _SaveSpotSheetState extends State<SaveSpotSheet> with TickerProviderStateM
   }
 
   Future<void> _saveSpot() async {
-    debugPrint('[SaveSpotSheet] _saveSpot called');
+  Logger.d('SaveSpotSheet: saveSpot start');
     if (_currentPosition == null) {
-      debugPrint('[SaveSpotSheet] No location available');
+  Logger.d('SaveSpotSheet: no location');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('No location available')),
       );
@@ -216,9 +217,9 @@ class _SaveSpotSheetState extends State<SaveSpotSheet> with TickerProviderStateM
             androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
           );
           final pending = await _notifications.pendingNotificationRequests();
-          debugPrint('[SaveSpotSheet] Scheduled notification. Pending count=${pending.length} ids=${pending.map((p) => p.id).toList()}');
+          Logger.d('SaveSpotSheet: scheduled notif, pending=${pending.length}');
         } on PlatformException catch (e) {
-          debugPrint('[SaveSpotSheet] PlatformException scheduling notification: $e');
+          Logger.d('SaveSpotSheet: platform exception scheduling');
           // If exact alarms are not permitted, try a fallback to inexact scheduling
           try {
             await _notifications.zonedSchedule(
@@ -238,9 +239,9 @@ class _SaveSpotSheetState extends State<SaveSpotSheet> with TickerProviderStateM
               androidScheduleMode: AndroidScheduleMode.inexact,
             );
             final pending = await _notifications.pendingNotificationRequests();
-            debugPrint('[SaveSpotSheet] Scheduled (fallback) notification. Pending count=${pending.length} ids=${pending.map((p) => p.id).toList()}');
+            Logger.d('SaveSpotSheet: scheduled fallback, pending=${pending.length}');
           } catch (e2) {
-            debugPrint('[SaveSpotSheet] Failed to schedule fallback notification: $e2');
+            Logger.d('SaveSpotSheet: failed scheduling fallback');
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('Could not schedule reminder; check exact alarm permission')),
@@ -248,24 +249,23 @@ class _SaveSpotSheetState extends State<SaveSpotSheet> with TickerProviderStateM
             }
           }
         } catch (e) {
-          debugPrint('[SaveSpotSheet] Unexpected error scheduling notification: $e');
+          Logger.d('SaveSpotSheet: unexpected scheduling error');
         }
       }
 
       if (mounted) {
-        debugPrint('[SaveSpotSheet] Attempting to close modal with spot: id=${spot.id}');
-        Navigator.of(context, rootNavigator: true).pop(spot);
-        debugPrint('[SaveSpotSheet] Modal close called');
+  Navigator.of(context, rootNavigator: true).pop(spot);
+  Logger.d('SaveSpotSheet: modal popped');
       }
     } catch (e) {
-      debugPrint('[SaveSpotSheet] Error: $e');
+  Logger.d('SaveSpotSheet: save error');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Failed to save parking spot')),
         );
       }
     } finally {
-      debugPrint('[SaveSpotSheet] finally block reached');
+  Logger.d('SaveSpotSheet: save finally');
       if (mounted) {
         setState(() => _isLoading = false);
       }

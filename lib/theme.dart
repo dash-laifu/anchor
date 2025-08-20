@@ -149,6 +149,8 @@ ThemeData get lightTheme => ThemeData(
   ),
 );
 
+// Note: per-widget card styling is applied in screens to ensure consistent borders.
+
 ThemeData get darkTheme => ThemeData(
   useMaterial3: true,
   colorScheme: ColorScheme.dark(

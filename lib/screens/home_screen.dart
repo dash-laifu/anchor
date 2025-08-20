@@ -12,6 +12,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter/services.dart';
+import 'package:anchor/utils/logger.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -63,19 +64,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
     await _notifications.initialize(
       settings,
       onDidReceiveNotificationResponse: (response) {
-        debugPrint('[HomeScreen] Notification action received: ${response.actionId}');
-        switch (response.actionId) {
-          case 'finish':
-            debugPrint('[HomeScreen] Finish action pressed');
-            _handleArrived();
-            break;
-          case 'open_app':
-            debugPrint('[HomeScreen] Open App action pressed');
-            // Optionally bring app to foreground
-            break;
-          default:
-            debugPrint('[HomeScreen] Unknown notification action: ${response.actionId}');
-        }
+        Logger.d('HomeScreen: notif action ${response.actionId}');
+        if (response.actionId == 'finish') _handleArrived();
       },
     );
     // Create notification channel for navigation actions
@@ -85,13 +75,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
       description: 'Navigation actions',
       importance: Importance.max,
     );
-    final androidPlugin = _notifications.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
-    if (androidPlugin != null) {
-      await androidPlugin.createNotificationChannel(navChannel);
-      debugPrint('[HomeScreen] Navigation notification channel created');
-    } else {
-      debugPrint('[HomeScreen] AndroidFlutterLocalNotificationsPlugin not available');
-    }
+  final androidPlugin = _notifications.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+  if (androidPlugin != null) await androidPlugin.createNotificationChannel(navChannel);
   }
 
   void _initializeAnimations() {
@@ -210,7 +195,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
   }
 
   Future<void> _showNavigationNotification() async {
-    debugPrint('[HomeScreen] Showing navigation notification...');
+  Logger.d('HomeScreen: show navigation notification');
     const androidDetails = AndroidNotificationDetails(
       'navigation_channel',
       'Navigation',
@@ -238,7 +223,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
       'Tap to return to Anchor or mark as finished.',
       details,
     );
-    debugPrint('[HomeScreen] Notification show call completed');
+  Logger.d('HomeScreen: notification shown');
   }
 
   Future<void> _handleArrived() async {
@@ -272,7 +257,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+  final colorScheme = Theme.of(context).colorScheme;
+  final borderColor = colorScheme.onSurface.withOpacity(0.12);
     return Scaffold(
       backgroundColor: colorScheme.surface,
       appBar: AppBar(
@@ -323,48 +309,55 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
                         ),
                       ),
                     ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Column(
-                        children: [
-                          // Current Spot Card
-                          if (_currentSpot != null) ...[
-                            CurrentSpotCard(
-                              spot: _currentSpot!,
-                              settings: _settings,
-                              onDelete: () async {
-                                await StorageService.deleteSpot(_currentSpot!.id);
-                                setState(() => _currentSpot = null);
-                              },
-                              onNavigate: _navigateToSpot,
-                              onArrived: _handleArrived,
-                            ),
+                    Card(
+                      shape: RoundedRectangleBorder(
+                        side: BorderSide(color: borderColor, width: 1.6),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+                        child: Column(
+                          children: [
+                            // Current Spot Card
+                            if (_currentSpot != null) ...[
+                              CurrentSpotCard(
+                                spot: _currentSpot!,
+                                settings: _settings,
+                                onDelete: () async {
+                                  await StorageService.deleteSpot(_currentSpot!.id);
+                                  setState(() => _currentSpot = null);
+                                },
+                                onNavigate: _navigateToSpot,
+                                onArrived: _handleArrived,
+                              ),
+                              const SizedBox(height: 32),
+                            ],
                             const SizedBox(height: 32),
-                          ],
-                          const SizedBox(height: 32),
-                          // Primary Action Button
-                          ScaleTransition(
-                            scale: _buttonScaleAnimation,
-                            child: PrimaryActionButton(
-                              hasActiveSpot: _currentSpot != null,
-                              onPressed: _handlePrimaryAction,
-                              isLoading: _isLoading,
-                            ),
-                          ),
-                          const SizedBox(height: 48),
-                          // Hint Text
-                          if (_currentSpot == null)
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 24),
-                              child: Text(
-                                '🅿️ Tap to save your parking spot with one touch',
-                                textAlign: TextAlign.center,
-                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                  color: colorScheme.onSurface.withValues(alpha: 0.6),
-                                ),
+                            // Primary Action Button
+                            ScaleTransition(
+                              scale: _buttonScaleAnimation,
+                              child: PrimaryActionButton(
+                                hasActiveSpot: _currentSpot != null,
+                                onPressed: _handlePrimaryAction,
+                                isLoading: _isLoading,
                               ),
                             ),
-                        ],
+                            const SizedBox(height: 48),
+                            // Hint Text
+                            if (_currentSpot == null)
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 24),
+                                child: Text(
+                                  '🅿️ Tap to save your parking spot with one touch',
+                                  textAlign: TextAlign.center,
+                                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    color: colorScheme.onSurface.withValues(alpha: 0.6),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
                       ),
                     ),
                   ],
