@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Anchor - Parking Saver | Privacy-First Parking App</title>
+    <meta name="description" content="Never wander a parking lot again! Anchor is a privacy-first parking app that keeps your data local and secure.">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚓</text></svg>">
+    
+    <!-- Open Graph / Social Media -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Anchor - Privacy-First Parking App">
+    <meta property="og:description" content="Never wander a parking lot again! Keep your parking data private and secure.">
+    <meta property="og:url" content="https://dash-laifu.github.io/anchor/">
+    
+    <style>
+        :root {
+            --primary-color: #2563eb;
+            --secondary-color: #64748b;
+            --accent-color: #059669;
+            --background: #ffffff;
+            --surface: #f8fafc;
+            --text: #0f172a;
+            --text-secondary: #475569;
+            --border: #e2e8f0;
+            --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+        }
+        
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --background: #0f172a;
+                --surface: #1e293b;
+                --text: #f1f5f9;
+                --text-secondary: #cbd5e1;
+                --border: #334155;
+            }
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: var(--text);
+            background: var(--background);
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 2rem 1rem;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 3rem;
+            padding: 2rem 0;
+            background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+            color: white;
+            border-radius: 1rem;
+            box-shadow: var(--shadow);
+        }
+        
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+        
+        .header .subtitle {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+        
+        .nav {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+        }
+        
+        .nav a {
+            padding: 0.75rem 1.5rem;
+            background: var(--surface);
+            color: var(--text);
+            text-decoration: none;
+            border-radius: 0.5rem;
+            border: 1px solid var(--border);
+            transition: all 0.2s;
+            font-weight: 500;
+        }
+        
+        .nav a:hover {
+            background: var(--primary-color);
+            color: white;
+            transform: translateY(-1px);
+        }
+        
+        .hero {
+            text-align: center;
+            padding: 3rem 0;
+            background: var(--surface);
+            border-radius: 1rem;
+            margin-bottom: 3rem;
+            border: 1px solid var(--border);
+        }
+        
+        .hero h2 {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+            color: var(--primary-color);
+        }
+        
+        .hero p {
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+            margin-bottom: 2rem;
+        }
+        
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin: 3rem 0;
+        }
+        
+        .feature {
+            padding: 2rem;
+            background: var(--surface);
+            border-radius: 1rem;
+            border: 1px solid var(--border);
+            text-align: center;
+        }
+        
+        .feature-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+        
+        .feature h3 {
+            font-size: 1.25rem;
+            margin-bottom: 1rem;
+            color: var(--primary-color);
+        }
+        
+        .feature p {
+            color: var(--text-secondary);
+        }
+        
+        .cta-section {
+            text-align: center;
+            padding: 3rem 0;
+            background: var(--surface);
+            border-radius: 1rem;
+            margin: 3rem 0;
+            border: 1px solid var(--border);
+        }
+        
+        .cta-button {
+            display: inline-block;
+            padding: 1rem 2rem;
+            background: var(--primary-color);
+            color: white;
+            text-decoration: none;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            font-size: 1.1rem;
+            transition: all 0.2s;
+            margin: 0.5rem;
+        }
+        
+        .cta-button:hover {
+            background: var(--accent-color);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow);
+        }
+        
+        .footer {
+            text-align: center;
+            padding: 2rem 0;
+            color: var(--text-secondary);
+            border-top: 1px solid var(--border);
+            margin-top: 3rem;
+        }
+        
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .hero h2 {
+                font-size: 1.5rem;
+            }
+            
+            .nav {
+                flex-direction: column;
+                align-items: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>⚓ Anchor</h1>
+            <p class="subtitle">Privacy-First Parking Saver</p>
+        </header>
+        
+        <nav class="nav">
+            <a href="#features">Features</a>
+            <a href="privacy.html">Privacy Policy</a>
+            <a href="https://github.com/dash-laifu/anchor">Source Code</a>
+        </nav>
+        
+        <section class="hero">
+            <h2>Never Wander a Parking Lot Again!</h2>
+            <p>Save your car's location with one tap and effortlessly find your way back, all while keeping your data completely private and offline.</p>
+        </section>
+        
+        <section class="features" id="features">
+            <div class="feature">
+                <div class="feature-icon">🔒</div>
+                <h3>100% Private</h3>
+                <p>All your data stays on your device. No tracking, no cloud storage, no data collection. Your parking spots are yours alone.</p>
+            </div>
+            
+            <div class="feature">
+                <div class="feature-icon">📍</div>
+                <h3>Precise Location</h3>
+                <p>Save your exact parking location with GPS coordinates and optional photos. Never forget where you parked again.</p>
+            </div>
+            
+            <div class="feature">
+                <div class="feature-icon">📱</div>
+                <h3>Dead Simple</h3>
+                <p>One tap to save, one tap to navigate back. Clean, intuitive interface that gets out of your way.</p>
+            </div>
+            
+            <div class="feature">
+                <div class="feature-icon">📸</div>
+                <h3>Visual Memory</h3>
+                <p>Add photos of your parking spot, nearby landmarks, or anything to help you remember the location.</p>
+            </div>
+            
+            <div class="feature">
+                <div class="feature-icon">🏃</div>
+                <h3>Offline Ready</h3>
+                <p>Works without internet connection. Your parking data is always available when you need it.</p>
+            </div>
+            
+            <div class="feature">
+                <div class="feature-icon">🎯</div>
+                <h3>Smart Navigation</h3>
+                <p>Get directions back to your car using your preferred navigation app. Works with Google Maps, Apple Maps, and more.</p>
+            </div>
+        </section>
+        
+        <section class="cta-section">
+            <h2>Ready to Never Lose Your Car Again?</h2>
+            <p>Download Anchor and experience parking peace of mind</p>
+            <br>
+            <a href="#" class="cta-button">Download on Google Play</a>
+            <a href="privacy.html" class="cta-button" style="background: var(--secondary-color);">Read Privacy Policy</a>
+        </section>
+        
+        <footer class="footer">
+            <p>&copy; 2025 dash-laifu | Anchor Parking Saver | Built with privacy in mind</p>
+            <p><a href="https://github.com/dash-laifu/anchor" style="color: var(--primary-color);">Open Source on GitHub</a></p>
+        </footer>
+    </div>
+</body>
+</html>
