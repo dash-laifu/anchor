@@ -186,7 +186,7 @@ class AlarmReceiver : BroadcastReceiver() {
             val notification = NotificationCompat.Builder(context, "native_reminders")
                 .setContentTitle(title)
                 .setContentText(body)
-                .setSmallIcon(android.R.drawable.ic_dialog_info) // Use system icon for now
+                .setSmallIcon(R.mipmap.ic_launcher) // Use the anchor app icon
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setAutoCancel(true)
                 .setVibrate(longArrayOf(0, 500, 200, 500))
