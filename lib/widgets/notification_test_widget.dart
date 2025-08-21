@@ -35,8 +35,8 @@ class NotificationTestWidget extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           ElevatedButton(
-            onPressed: () => _showPendingNotifications(context),
-            child: const Text('Show Pending Notifications'),
+            onPressed: () => _testScheduledNotification(context, 5),
+            child: const Text('Test 5 Min Reminder'),
           ),
           const SizedBox(height: 8),
           ElevatedButton(
@@ -48,11 +48,12 @@ class NotificationTestWidget extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           ElevatedButton(
-            onPressed: () => _debugNotificationStatus(),
+            onPressed: () => _testNativeAlarm(context),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blue.shade100,
+              backgroundColor: Colors.orange,
+              foregroundColor: Colors.white,
             ),
-            child: const Text('Debug Notification System'),
+            child: const Text('Test Native Alarm (30s)'),
           ),
         ],
       ),
@@ -104,44 +105,6 @@ class NotificationTestWidget extends StatelessWidget {
     }
   }
 
-  static Future<void> _showPendingNotifications(BuildContext context) async {
-    try {
-      final pending = await NotificationService.getPendingNotifications();
-      
-      if (context.mounted) {
-        showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('Pending Notifications'),
-            content: SizedBox(
-              width: double.maxFinite,
-              child: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: pending.isEmpty
-                      ? [const Text('No pending notifications')]
-                      : pending.map((p) => Padding(
-                          padding: const EdgeInsets.only(bottom: 8.0),
-                          child: Text('ID: ${p.id}\nTitle: ${p.title ?? '-'}\nBody: ${p.body ?? '-'}'),
-                        )).toList(),
-                ),
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Close'),
-              ),
-            ],
-          ),
-        );
-      }
-      Logger.d('Test: found ${pending.length} pending notifications');
-    } catch (e) {
-      Logger.d('Test: failed to get pending notifications: $e');
-    }
-  }
-
   static Future<void> _clearAllNotifications(BuildContext context) async {
     try {
       await NotificationService.cancelAll();
@@ -160,12 +123,31 @@ class NotificationTestWidget extends StatelessWidget {
     }
   }
 
-  static Future<void> _debugNotificationStatus() async {
+  static Future<void> _testNativeAlarm(BuildContext context) async {
     try {
-      await NotificationService.debugNotificationStatus();
-      Logger.d('Debug: notification status check completed');
+      await NotificationService.testNativeAlarm();
+      
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Native alarm test started. Watch for notification in 30 seconds!'),
+            duration: Duration(seconds: 3),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+      Logger.d('Test: native alarm test initiated');
     } catch (e) {
-      Logger.d('Debug: notification status check failed: $e');
+      Logger.d('Test: native alarm test failed: $e');
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Native alarm test failed'),
+            duration: Duration(seconds: 2),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 }
