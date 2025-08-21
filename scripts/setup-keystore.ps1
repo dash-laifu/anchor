@@ -5,7 +5,7 @@ param(
 )
 
 function Show-Help {
-    Write-Host "🔑 Anchor Keystore Setup" -ForegroundColor Green
+    Write-Host "Anchor Keystore Setup" -ForegroundColor Green
     Write-Host ""
     Write-Host "This script helps you create a signing keystore for Google Play Store releases."
     Write-Host ""
@@ -20,26 +20,26 @@ function Show-Help {
     Write-Host "  4. Tests the keystore configuration"
     Write-Host ""
     Write-Host "Requirements:" -ForegroundColor Yellow
-    Write-Host "  • Java Development Kit (JDK) installed"
-    Write-Host "  • keytool command available in PATH"
+    Write-Host "  - Java Development Kit (JDK) installed"
+    Write-Host "  - keytool command available in PATH"
     Write-Host ""
 }
 
 function Test-JavaInstallation {
-    Write-Host "🔍 Checking Java installation..." -ForegroundColor Yellow
+    Write-Host "Checking Java installation..." -ForegroundColor Yellow
     
     try {
         $javaVersion = java -version 2>&1
         if ($LASTEXITCODE -eq 0) {
-            Write-Host "✅ Java is installed" -ForegroundColor Green
+            Write-Host "SUCCESS: Java is installed" -ForegroundColor Green
             
             # Check for keytool
             $keytoolVersion = keytool -help 2>&1
             if ($LASTEXITCODE -eq 0) {
-                Write-Host "✅ keytool is available" -ForegroundColor Green
+                Write-Host "SUCCESS: keytool is available" -ForegroundColor Green
                 return $true
             } else {
-                Write-Host "❌ keytool not found in PATH" -ForegroundColor Red
+                Write-Host "ERROR: keytool not found in PATH" -ForegroundColor Red
                 Write-Host "   keytool should be available with JDK installation" -ForegroundColor Yellow
                 return $false
             }
@@ -47,7 +47,7 @@ function Test-JavaInstallation {
             throw "Java not found"
         }
     } catch {
-        Write-Host "❌ Java is not installed or not in PATH" -ForegroundColor Red
+        Write-Host "ERROR: Java is not installed or not in PATH" -ForegroundColor Red
         Write-Host "   Please install Java Development Kit (JDK 8 or higher)" -ForegroundColor Yellow
         Write-Host "   Download from: https://adoptium.net/" -ForegroundColor Cyan
         return $false
@@ -80,7 +80,7 @@ function Get-UserInput {
 }
 
 function New-Keystore {
-    Write-Host "🔑 Creating new keystore..." -ForegroundColor Yellow
+    Write-Host "Creating new keystore..." -ForegroundColor Yellow
     Write-Host ""
     Write-Host "Please provide the following information for your keystore:" -ForegroundColor Cyan
     Write-Host ""
@@ -90,7 +90,7 @@ function New-Keystore {
     $keystorePasswordConfirm = Get-UserInput -Prompt "Confirm keystore password" -Secure
     
     if ($keystorePassword -ne $keystorePasswordConfirm) {
-        Write-Host "❌ Passwords do not match" -ForegroundColor Red
+        Write-Host "ERROR: Passwords do not match" -ForegroundColor Red
         return $false
     }
     
@@ -107,55 +107,58 @@ function New-Keystore {
     
     # Create keystore
     Write-Host ""
-    Write-Host "🔨 Generating keystore..." -ForegroundColor Yellow
+    Write-Host "Generating keystore..." -ForegroundColor Yellow
     
     $keystorePath = "android\anchor-release-key.keystore"
     $alias = "anchor-key"
     
-    # Build distinguished name
-    $dn = "CN=$firstName, OU=$organizationUnit, O=$organization, L=$city, S=$state, C=$country"
+    # Build distinguished name - escape commas and quotes properly
+    $dn = "CN=$firstName,OU=$organizationUnit,O=$organization,L=$city,S=$state,C=$country"
     
     # Create keystore command
     $env:KEYSTORE_PASSWORD = $keystorePassword
     $env:KEY_PASSWORD = $keyPassword
     
     try {
-        # Use environment variables to avoid password exposure in command line
-        $process = Start-Process -FilePath "keytool" -ArgumentList @(
-            "-genkey", "-v",
-            "-keystore", $keystorePath,
-            "-keyalg", "RSA",
-            "-keysize", "2048",
-            "-validity", "10000",
-            "-alias", $alias,
-            "-dname", $dn,
-            "-storepass", $keystorePassword,
+        # Build arguments array with proper escaping
+        $arguments = @(
+            "-genkeypair", "-v"
+            "-keystore", $keystorePath
+            "-keyalg", "RSA"
+            "-keysize", "2048"
+            "-validity", "10000"
+            "-alias", $alias
+            "-dname", "`"$dn`""
+            "-storepass", $keystorePassword
             "-keypass", $keyPassword
-        ) -Wait -PassThru -NoNewWindow
+        )
+        
+        # Use environment variables to avoid password exposure in command line
+        $process = Start-Process -FilePath "keytool" -ArgumentList $arguments -Wait -PassThru -NoNewWindow
         
         if ($process.ExitCode -eq 0) {
-            Write-Host "✅ Keystore created successfully" -ForegroundColor Green
+            Write-Host "SUCCESS: Keystore created successfully" -ForegroundColor Green
             
             # Create key.properties file
             $keyPropertiesContent = @"
 storePassword=$keystorePassword
 keyPassword=$keyPassword
 keyAlias=$alias
-storeFile=anchor-release-key.keystore
+storeFile=../anchor-release-key.keystore
 "@
             
             $keyPropertiesPath = "android\key.properties"
             $keyPropertiesContent | Set-Content -Path $keyPropertiesPath
             
-            Write-Host "✅ key.properties file created" -ForegroundColor Green
+            Write-Host "SUCCESS: key.properties file created" -ForegroundColor Green
             
             return $true
         } else {
-            Write-Host "❌ Failed to create keystore" -ForegroundColor Red
+            Write-Host "ERROR: Failed to create keystore" -ForegroundColor Red
             return $false
         }
     } catch {
-        Write-Host "❌ Error creating keystore: $($_.Exception.Message)" -ForegroundColor Red
+        Write-Host "ERROR: Error creating keystore: $($_.Exception.Message)" -ForegroundColor Red
         return $false
     } finally {
         # Clear environment variables
@@ -165,19 +168,19 @@ storeFile=anchor-release-key.keystore
 }
 
 function Test-KeystoreSetup {
-    Write-Host "🧪 Testing keystore setup..." -ForegroundColor Yellow
+    Write-Host "Testing keystore setup..." -ForegroundColor Yellow
     
     # Check if files exist
     $keystorePath = "android\anchor-release-key.keystore"
     $keyPropertiesPath = "android\key.properties"
     
     if (!(Test-Path $keystorePath)) {
-        Write-Host "❌ Keystore file not found: $keystorePath" -ForegroundColor Red
+        Write-Host "ERROR: Keystore file not found: $keystorePath" -ForegroundColor Red
         return $false
     }
     
     if (!(Test-Path $keyPropertiesPath)) {
-        Write-Host "❌ key.properties file not found: $keyPropertiesPath" -ForegroundColor Red
+        Write-Host "ERROR: key.properties file not found: $keyPropertiesPath" -ForegroundColor Red
         return $false
     }
     
@@ -189,62 +192,62 @@ function Test-KeystoreSetup {
         
         $listOutput = keytool -list -keystore $keystorePath -alias $alias -storepass $storePassword 2>&1
         if ($LASTEXITCODE -eq 0) {
-            Write-Host "✅ Keystore is accessible and valid" -ForegroundColor Green
+            Write-Host "SUCCESS: Keystore is accessible and valid" -ForegroundColor Green
             return $true
         } else {
-            Write-Host "❌ Cannot access keystore or alias" -ForegroundColor Red
+            Write-Host "ERROR: Cannot access keystore or alias" -ForegroundColor Red
             Write-Host "   $listOutput" -ForegroundColor Yellow
             return $false
         }
     } catch {
-        Write-Host "❌ Error testing keystore: $($_.Exception.Message)" -ForegroundColor Red
+        Write-Host "ERROR: Error testing keystore: $($_.Exception.Message)" -ForegroundColor Red
         return $false
     }
 }
 
 function Show-SecurityGuidance {
     Write-Host ""
-    Write-Host "🛡️  IMPORTANT SECURITY NOTES" -ForegroundColor Red
-    Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Gray
+    Write-Host "IMPORTANT SECURITY NOTES" -ForegroundColor Red
+    Write-Host "============================================" -ForegroundColor Gray
     Write-Host ""
-    Write-Host "🔒 BACKUP YOUR KEYSTORE:" -ForegroundColor Yellow
-    Write-Host "   • Copy anchor-release-key.keystore to a secure location"
-    Write-Host "   • Store passwords in a secure password manager"
-    Write-Host "   • Create multiple backups (cloud storage, external drive)"
-    Write-Host "   • Test backups periodically"
+    Write-Host "BACKUP YOUR KEYSTORE:" -ForegroundColor Yellow
+    Write-Host "   - Copy anchor-release-key.keystore to a secure location"
+    Write-Host "   - Store passwords in a secure password manager"
+    Write-Host "   - Create multiple backups (cloud storage, external drive)"
+    Write-Host "   - Test backups periodically"
     Write-Host ""
-    Write-Host "⚠️  LOSING YOUR KEYSTORE MEANS:" -ForegroundColor Red
-    Write-Host "   • You cannot update your published app"
-    Write-Host "   • You must publish a new app with different package name"
-    Write-Host "   • All existing users cannot update to new versions"
+    Write-Host "WARNING: LOSING YOUR KEYSTORE MEANS:" -ForegroundColor Red
+    Write-Host "   - You cannot update your published app"
+    Write-Host "   - You must publish a new app with different package name"
+    Write-Host "   - All existing users cannot update to new versions"
     Write-Host ""
-    Write-Host "🚫 NEVER:" -ForegroundColor Red
-    Write-Host "   • Commit keystore files to version control (git)"
-    Write-Host "   • Share keystore files publicly"
-    Write-Host "   • Use weak passwords"
-    Write-Host "   • Store passwords in plain text files"
+    Write-Host "NEVER:" -ForegroundColor Red
+    Write-Host "   - Commit keystore files to version control (git)"
+    Write-Host "   - Share keystore files publicly"
+    Write-Host "   - Use weak passwords"
+    Write-Host "   - Store passwords in plain text files"
     Write-Host ""
-    Write-Host "✅ RECOMMENDED:" -ForegroundColor Green
-    Write-Host "   • Use Google Play App Signing (upload key protection)"
-    Write-Host "   • Store keystore in encrypted cloud storage"
-    Write-Host "   • Use different passwords for keystore and key"
-    Write-Host "   • Document keystore location and access procedure"
+    Write-Host "RECOMMENDED:" -ForegroundColor Green
+    Write-Host "   - Use Google Play App Signing (upload key protection)"
+    Write-Host "   - Store keystore in encrypted cloud storage"
+    Write-Host "   - Use different passwords for keystore and key"
+    Write-Host "   - Document keystore location and access procedure"
     Write-Host ""
-    Write-Host "📁 Files created:" -ForegroundColor Cyan
-    Write-Host "   • android\anchor-release-key.keystore (SECURE THIS FILE)"
-    Write-Host "   • android\key.properties (excluded from git)"
+    Write-Host "Files created:" -ForegroundColor Cyan
+    Write-Host "   - android\anchor-release-key.keystore (SECURE THIS FILE)"
+    Write-Host "   - android\key.properties (excluded from git)"
     Write-Host ""
 }
 
 function Show-NextSteps {
-    Write-Host "🚀 NEXT STEPS" -ForegroundColor Green
-    Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Gray
+    Write-Host "NEXT STEPS" -ForegroundColor Green
+    Write-Host "============================================" -ForegroundColor Gray
     Write-Host ""
-    Write-Host "1. 🔐 Secure your keystore files immediately" -ForegroundColor Yellow
-    Write-Host "2. 📦 Build release with: .\scripts\release.ps1 -Version 1.0.0 -Bundle" -ForegroundColor Yellow
-    Write-Host "3. 🧪 Test the release build thoroughly" -ForegroundColor Yellow
-    Write-Host "4. 📱 Upload to Google Play Console" -ForegroundColor Yellow
-    Write-Host "5. 📖 Follow docs\PLAYSTORE_RELEASE.md for complete guide" -ForegroundColor Yellow
+    Write-Host "1. Secure your keystore files immediately" -ForegroundColor Yellow
+    Write-Host "2. Build release with: .\scripts\release.ps1 -Version 1.0.0 -Bundle" -ForegroundColor Yellow
+    Write-Host "3. Test the release build thoroughly" -ForegroundColor Yellow
+    Write-Host "4. Upload to Google Play Console" -ForegroundColor Yellow
+    Write-Host "5. Follow docs\PLAYSTORE_RELEASE.md for complete guide" -ForegroundColor Yellow
     Write-Host ""
     Write-Host "Build commands:" -ForegroundColor Cyan
     Write-Host "   App Bundle (recommended): .\scripts\release.ps1 -Version 1.0.0 -Bundle"
@@ -258,16 +261,16 @@ if ($Help) {
     exit 0
 }
 
-Write-Host "🔑 Anchor Keystore Setup" -ForegroundColor Green
-Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Gray
+Write-Host "Anchor Keystore Setup" -ForegroundColor Green
+Write-Host "============================================" -ForegroundColor Gray
 Write-Host ""
 
 # Check if keystore already exists
 if (Test-Path "android\anchor-release-key.keystore") {
-    Write-Host "⚠️  Keystore already exists: android\anchor-release-key.keystore" -ForegroundColor Yellow
+    Write-Host "WARNING: Keystore already exists: android\anchor-release-key.keystore" -ForegroundColor Yellow
     $overwrite = Read-Host "Do you want to overwrite it? (y/N)"
     if ($overwrite -ne "y" -and $overwrite -ne "Y") {
-        Write-Host "❌ Aborted. Existing keystore preserved." -ForegroundColor Red
+        Write-Host "ERROR: Aborted. Existing keystore preserved." -ForegroundColor Red
         exit 0
     }
     Write-Host ""
@@ -275,7 +278,7 @@ if (Test-Path "android\anchor-release-key.keystore") {
 
 # Check Java installation
 if (!(Test-JavaInstallation)) {
-    Write-Host "❌ Prerequisites not met. Please install Java JDK." -ForegroundColor Red
+    Write-Host "ERROR: Prerequisites not met. Please install Java JDK." -ForegroundColor Red
     exit 1
 }
 
@@ -286,7 +289,7 @@ Write-Host ""
 
 $confirm = Read-Host "Continue with keystore creation? (Y/n)"
 if ($confirm -eq "n" -or $confirm -eq "N") {
-    Write-Host "❌ Aborted by user." -ForegroundColor Red
+    Write-Host "ERROR: Aborted by user." -ForegroundColor Red
     exit 0
 }
 
@@ -295,7 +298,7 @@ Write-Host ""
 # Create keystore
 $success = New-Keystore
 if (!$success) {
-    Write-Host "❌ Keystore creation failed" -ForegroundColor Red
+    Write-Host "ERROR: Keystore creation failed" -ForegroundColor Red
     exit 1
 }
 
@@ -304,7 +307,7 @@ Write-Host ""
 # Test keystore setup
 $testSuccess = Test-KeystoreSetup
 if (!$testSuccess) {
-    Write-Host "❌ Keystore setup verification failed" -ForegroundColor Red
+    Write-Host "ERROR: Keystore setup verification failed" -ForegroundColor Red
     exit 1
 }
 
@@ -314,7 +317,7 @@ Show-SecurityGuidance
 # Show next steps
 Show-NextSteps
 
-Write-Host "🎉 Keystore setup completed successfully!" -ForegroundColor Green
+Write-Host "SUCCESS: Keystore setup completed successfully!" -ForegroundColor Green
 Write-Host ""
 
 exit 0
