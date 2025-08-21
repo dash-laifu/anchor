@@ -1,5 +1,7 @@
+import 'package:anchor/config/debug_config.dart';
+
 class Logger {
-  static bool enabled = true; // flip to false to silence debug logs
+  static bool get enabled => DebugConfig.enableDebugLogging;
 
   static void d(String msg) {
     if (!enabled) return;

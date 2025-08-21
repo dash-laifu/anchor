@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:anchor/models/parking_spot.dart';
 import 'package:anchor/services/location_service.dart';
 import 'package:anchor/services/storage_service.dart';
+import 'package:anchor/services/notification_service.dart';
 import 'package:anchor/widgets/primary_action_button.dart';
 import 'package:anchor/widgets/current_spot_card.dart';
 import 'package:anchor/widgets/save_spot_sheet.dart';
 import 'package:anchor/screens/history_screen.dart';
 import 'package:anchor/screens/settings_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter/services.dart';
@@ -35,7 +35,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
   AppSettings _settings = AppSettings();
   late AnimationController _buttonAnimationController;
   late Animation<double> _buttonScaleAnimation;
-  final FlutterLocalNotificationsPlugin _notifications = FlutterLocalNotificationsPlugin();
 
   @override
   void initState() {
@@ -59,24 +58,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
   }
 
   Future<void> _initNotifications() async {
-    const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
-    const settings = InitializationSettings(android: androidSettings);
-    await _notifications.initialize(
-      settings,
-      onDidReceiveNotificationResponse: (response) {
-        Logger.d('HomeScreen: notif action ${response.actionId}');
-        if (response.actionId == 'finish') _handleArrived();
-      },
-    );
-    // Create notification channel for navigation actions
-    const navChannel = AndroidNotificationChannel(
-      'navigation_channel',
-      'Navigation',
-      description: 'Navigation actions',
-      importance: Importance.max,
-    );
-  final androidPlugin = _notifications.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
-  if (androidPlugin != null) await androidPlugin.createNotificationChannel(navChannel);
+    try {
+      await NotificationService.initialize();
+      Logger.d('HomeScreen: notifications initialized');
+    } catch (e) {
+      Logger.d('HomeScreen: notification init failed: $e');
+    }
   }
 
   void _initializeAnimations() {
@@ -196,34 +183,16 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
 
   Future<void> _showNavigationNotification() async {
   Logger.d('HomeScreen: show navigation notification');
-    const androidDetails = AndroidNotificationDetails(
-      'navigation_channel',
-      'Navigation',
-      channelDescription: 'Navigation actions',
-      importance: Importance.max,
-      priority: Priority.high,
-      actions: [
-        AndroidNotificationAction(
-          'open_app',
-          'Open App',
-          showsUserInterface: true,
-          // Add more options if needed
-        ),
-        AndroidNotificationAction(
-          'finish',
-          'Finish',
-          showsUserInterface: true,
-        ),
-      ],
-    );
-    const details = NotificationDetails(android: androidDetails);
-    await _notifications.show(
-      1,
-      'Navigation Started',
-      'Tap to return to Anchor or mark as finished.',
-      details,
-    );
-  Logger.d('HomeScreen: notification shown');
+    try {
+      await NotificationService.showImmediate(
+        id: 1,
+        title: 'Navigation Started',
+        body: 'Tap to return to Anchor or mark as finished.',
+      );
+      Logger.d('HomeScreen: notification shown');
+    } catch (e) {
+      Logger.d('HomeScreen: failed to show notification: $e');
+    }
   }
 
   Future<void> _handleArrived() async {
@@ -376,7 +345,6 @@ class NavigationOptionsSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.all(24),
       child: Column(

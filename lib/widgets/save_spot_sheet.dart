@@ -5,10 +5,9 @@ import 'package:geolocator/geolocator.dart';
 import 'package:anchor/models/parking_spot.dart';
 import 'package:anchor/services/location_service.dart';
 import 'package:anchor/services/storage_service.dart';
+import 'package:anchor/services/notification_service.dart';
+import 'package:anchor/config/debug_config.dart';
 import 'package:path/path.dart' as path;
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:timezone/timezone.dart' as tz;
-import 'package:timezone/data/latest.dart' as tzdata;
 import 'package:flutter/services.dart';
 import 'package:anchor/utils/logger.dart';
 
@@ -22,12 +21,6 @@ class SaveSpotSheet extends StatefulWidget {
 }
 
 class _SaveSpotSheetState extends State<SaveSpotSheet> with TickerProviderStateMixin {
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    tzdata.initializeTimeZones();
-  }
-  final FlutterLocalNotificationsPlugin _notifications = FlutterLocalNotificationsPlugin();
   final _noteController = TextEditingController();
   final _levelController = TextEditingController();
   final _imagePicker = ImagePicker();
@@ -198,58 +191,20 @@ class _SaveSpotSheetState extends State<SaveSpotSheet> with TickerProviderStateM
       if (reminderAt != null) {
         final notifId = spot.id.hashCode;
         try {
-          // cancel any previous pending notification for this spot id
-          await _notifications.cancel(notifId);
-          await _notifications.zonedSchedule(
-            notifId,
-            'Parking Reminder',
-            'Your parking time is about to expire.',
-            tz.TZDateTime.from(reminderAt, tz.local),
-            NotificationDetails(
-              android: AndroidNotificationDetails(
-                'reminder_channel',
-                'Parking Reminders',
-                channelDescription: 'Reminders for parking duration',
-                importance: Importance.max,
-                priority: Priority.high,
-              ),
-            ),
-            androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+          await NotificationService.scheduleReminder(
+            id: notifId,
+            title: 'Parking Reminder',
+            body: 'Your parking time is about to expire.',
+            scheduledTime: reminderAt,
           );
-          final pending = await _notifications.pendingNotificationRequests();
-          Logger.d('SaveSpotSheet: scheduled notif, pending=${pending.length}');
-        } on PlatformException catch (e) {
-          Logger.d('SaveSpotSheet: platform exception scheduling');
-          // If exact alarms are not permitted, try a fallback to inexact scheduling
-          try {
-            await _notifications.zonedSchedule(
-              notifId,
-              'Parking Reminder',
-              'Your parking time is about to expire.',
-              tz.TZDateTime.from(reminderAt, tz.local),
-              NotificationDetails(
-                android: AndroidNotificationDetails(
-                  'reminder_channel',
-                  'Parking Reminders',
-                  channelDescription: 'Reminders for parking duration',
-                  importance: Importance.max,
-                  priority: Priority.high,
-                ),
-              ),
-              androidScheduleMode: AndroidScheduleMode.inexact,
-            );
-            final pending = await _notifications.pendingNotificationRequests();
-            Logger.d('SaveSpotSheet: scheduled fallback, pending=${pending.length}');
-          } catch (e2) {
-            Logger.d('SaveSpotSheet: failed scheduling fallback');
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Could not schedule reminder; check exact alarm permission')),
-              );
-            }
-          }
+          Logger.d('SaveSpotSheet: scheduled reminder successfully');
         } catch (e) {
-          Logger.d('SaveSpotSheet: unexpected scheduling error');
+          Logger.d('SaveSpotSheet: failed to schedule reminder: $e');
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Could not schedule reminder; check exact alarm permission')),
+            );
+          }
         }
       }
 
@@ -258,7 +213,7 @@ class _SaveSpotSheetState extends State<SaveSpotSheet> with TickerProviderStateM
   Logger.d('SaveSpotSheet: modal popped');
       }
     } catch (e) {
-  Logger.d('SaveSpotSheet: save error');
+  Logger.d('SaveSpotSheet: save error: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Failed to save parking spot')),
@@ -299,12 +254,7 @@ class _SaveSpotSheetState extends State<SaveSpotSheet> with TickerProviderStateM
   }
 
   Widget _buildReminderOptions() {
-    const options = [
-      (30, '30 min'),
-      (60, '1 hour'),
-      (120, '2 hours'),
-      (240, '4 hours'),
-    ];
+    final allOptions = DebugConfig.reminderOptions;
 
     return Wrap(
       spacing: 8,
@@ -316,7 +266,7 @@ class _SaveSpotSheetState extends State<SaveSpotSheet> with TickerProviderStateM
             setState(() => _reminderMinutes = selected ? null : _reminderMinutes);
           },
         ),
-        ...options.map((option) {
+        ...allOptions.map((option) {
           return FilterChip(
             label: Text(option.$2),
             selected: _reminderMinutes == option.$1,

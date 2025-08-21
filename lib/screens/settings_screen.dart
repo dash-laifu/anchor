@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:anchor/models/parking_spot.dart';
 import 'package:anchor/services/storage_service.dart';
+import 'package:anchor/services/notification_service.dart';
+import 'package:anchor/widgets/notification_test_widget.dart';
+import 'package:anchor/config/debug_config.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:anchor/utils/logger.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -16,16 +18,9 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   AppSettings _settings = AppSettings();
   bool _isLoading = true;
-  final FlutterLocalNotificationsPlugin _notifications = FlutterLocalNotificationsPlugin();
 
   Future<void> _ensureNotificationsInitialized() async {
-    try {
-      const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
-      const settings = InitializationSettings(android: androidSettings);
-      await _notifications.initialize(settings);
-    } catch (e) {
-  Logger.d('SettingsScreen: notif init failed');
-    }
+    await NotificationService.initialize();
   }
 
   @override
@@ -150,17 +145,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       },
                       textColor: colorScheme.error,
                     ),
+                    if (DebugConfig.showNotificationTests)
+                      _buildActionTile(
+                        'Test Notifications (DEBUG)',
+                        'Debug notification functionality',
+                        Icons.bug_report,
+                        () => _showNotificationTestDialog(),
+                        textColor: colorScheme.secondary,
+                      ),
                     if (_settings.askDurationOnSave)
                       _buildDropdownTile<int>(
                         'Default parking duration',
                         _settings.defaultDurationMinutes ?? -1,
-                        [
-                          (-1, 'No default'),
-                          (30, '30 minutes'),
-                          (60, '1 hour'),
-                          (120, '2 hours'),
-                          (240, '4 hours'),
-                        ],
+                        DebugConfig.defaultDurationOptions,
                         (value) => _updateSettings(_settings.copyWith(defaultDurationMinutes: value)),
                       ),
                   ],
@@ -474,7 +471,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _showPendingNotifications() async {
     try {
-      final pending = await _notifications.pendingNotificationRequests();
+      final pending = await NotificationService.getPendingNotifications();
       if (!mounted) return;
       showDialog(
         context: context,
@@ -497,7 +494,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
       );
     } catch (e) {
-      Logger.d('SettingsScreen: could not fetch pending notifications');
+      Logger.d('SettingsScreen: could not fetch pending notifications: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Failed to read pending notifications')),
@@ -508,19 +505,35 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _clearPendingNotifications() async {
     try {
-      await _notifications.cancelAll();
+      await NotificationService.cancelAll();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('All pending reminders cleared')),
         );
       }
     } catch (e) {
-      Logger.d('SettingsScreen: failed to clear pending notifications');
+      Logger.d('SettingsScreen: failed to clear pending notifications: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Failed to clear pending reminders')),
         );
       }
     }
+  }
+
+  void _showNotificationTestDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Test Notifications'),
+        content: const NotificationTestWidget(),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
   }
 }
